@@ -11,7 +11,7 @@ namespace Gomoku_Custom.Shared
     [Serializable]
     public class GameData
     {
-        public const int FieldDim = 19;
+        //public const int FieldDim = 19;
         public byte[,] Field { get; set; }
         public Point Updated { get; set; }
         //public string Message { get; set; }
@@ -43,29 +43,5 @@ namespace Gomoku_Custom.Shared
         //}
     }
 
-    public enum ResponseCode : byte { OK, PointOccupied, PointOutOfRange, RequestError, Win, Loss, AccessDenied, Reserved }
-    public enum Team { Blue, Red, Unknown }
-    [Serializable]
-    public struct MoveData
-    {
-        public Point Proposed { get; set; }
-        public Guid ClientId { get; set; }
-    }
-    [Serializable]
-    public struct InitData
-    {
-        public Guid ClientId { get; set; }
-        public Team Side { get; set; }
-        public ResponseCode Code { get; set; }
-    }
-    [Serializable]
-    public struct Point
-    {
-        public byte X { get; set; }
-        public byte Y { get; set; }
-
-        public Point(byte x, byte y) =>
-            (X, Y) = (x, y);
-
-    }
+    
 }
