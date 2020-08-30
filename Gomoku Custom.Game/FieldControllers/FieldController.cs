@@ -12,13 +12,11 @@ namespace Gomoku_Custom.Game.FieldControllers
     {
         private Team[,] _field;
         public int FieldSize { get; }
-        private IRule _rule;
         public FieldController(Team[,] field)
         {
             _field = field;
             FieldSize = field.GetLength(0);
         }
-
         public Team GetPos(Point p) => GetPos(p.X, p.Y);
         public Team GetPos(int x, int y) => _field[y, x];
         public bool IsOutOfRange(Point p) =>
@@ -26,11 +24,30 @@ namespace Gomoku_Custom.Game.FieldControllers
         public bool IsOutOfRange(int x, int y) =>
             y < 0 || y >= FieldSize || x < 0 || x >= FieldSize;
         public void SetPos(Point p, Team value) => _field[p.Y, p.X] = value;
+        public void SetPos(int x, int y, Team value) => _field[y, x] = value;
         public void ClearField()
         {
             for (int i = 0; i < FieldSize; ++i)
                 for (int j = 0; j < FieldSize; ++j)
                     _field[i, j] = Team.None;
+            //SetPos(i, j, Team.None);
         }
+        public bool IsEmpty()
+        {
+            for (int i = 0; i < FieldSize; ++i)
+                for (int j = 0; j < FieldSize; ++j)
+                    if (_field[i, j] != Team.None)
+                        return false;
+            return true;
+        }
+        public bool IsFull()
+        {
+            for (int i = 0; i < FieldSize; ++i)
+                for (int j = 0; j < FieldSize; ++j)
+                    if (_field[i, j] == Team.None)
+                        return false;
+            return true;
+        }
+
     }
 }

@@ -4,6 +4,7 @@ using Gomoku_Custom.Shared;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -21,7 +22,7 @@ namespace Gomoku_Custom.Game.Strategies
             int size = gd.Field.GetLength(0);
             _internalField = new Team[size, size];
             _controller = new FieldController(_internalField);
-
+            _checker = new Checker(_controller, GomokuGame.WinLength);
             for (int i = 0; i < size; ++i)
                 for (int j = 0; j < size; ++j)
                     _internalField[i, j] = gd.Field[i, j];
@@ -31,10 +32,14 @@ namespace Gomoku_Custom.Game.Strategies
         }
         public Point Predict(GameData gd)
         {
-            return new Point();
+            _controller.SetPos(gd.Updated, gd.Field[gd.Updated.Y, gd.Updated.X]);
+            if (_controller.IsEmpty())
+                return new Point(_rand.Next(0, _controller.FieldSize), _rand.Next(0, _controller.FieldSize));
+            Negamax(1,1, double.NegativeInfinity, double.PositiveInfinity);
+            return _predicted;
         }
-
-        private double Negamax(/*ref Team[,] field, */int depthLevel = 0, int multiplier = 1)
+        private Point _predicted;
+        private double Negamax(/*ref Team[,] field, */int depthLevel, int multiplier, double alpha, double beta)
         {
             Team win = IsFinal();
             if (win != Team.None)
@@ -44,11 +49,21 @@ namespace Gomoku_Custom.Game.Strategies
                 return multiplier * EvalField(/*ref field*/);
             double maxScore = double.NegativeInfinity;
 
-            foreach (Point predicts in AvailableMoves())
+            foreach (Point predict in AvailableMoves())
             {
-                _controller.SetPos(predicts, multiplier == 1 ? _team : _enemyTeam);
-                maxScore = Math.Max(maxScore, -Negamax(depthLevel - 1, -multiplier));
-                _controller.SetPos(predicts, Team.None);
+                _controller.SetPos(predict, multiplier == 1 ? _team : _enemyTeam);
+                double newScore = -Negamax(depthLevel - 1, -multiplier,-beta, -alpha);
+                _controller.SetPos(predict, Team.None);
+
+                if (newScore > maxScore)
+                {
+                    maxScore = newScore;
+                    _predicted = predict;
+                }
+                alpha = Math.Max(alpha, maxScore);
+                if (alpha >= beta)
+                    break;
+                //maxScore = Math.Max(maxScore, -Negamax(depthLevel - 1, -multiplier));
             }
             return maxScore;
         }
@@ -57,7 +72,7 @@ namespace Gomoku_Custom.Game.Strategies
             for (int i = 0; i < _controller.FieldSize; ++i)
                 for (int j = 0; j < _controller.FieldSize; ++j)
                 {
-                    if (_controller.GetPos(j, i) == Team.None)
+                    if (_controller.GetPos(i, j) == Team.None)
                         continue;
                     Point current = new Point(i, j);
                     if (_checker.IsWinCondition(current))
@@ -67,10 +82,13 @@ namespace Gomoku_Custom.Game.Strategies
         }
         private bool IsCandidateForMove(int x, int y)
         {
+            if (!_controller.IsOutOfRange(x, y) && _controller.GetPos(x, y) != Team.None)
+                return false;
+
             for (int dx = -1; dx <= 1; ++dx)
                 for (int dy = -1; dy <= 1; ++dy)
                 {
-                    if (dx == dy && dy == 0)
+                    if (dx == 0 && dy == 0)
                         continue;
                     int px = x + dx;
                     int py = y + dy;
@@ -86,11 +104,15 @@ namespace Gomoku_Custom.Game.Strategies
                 for (int y = 0; y < _controller.FieldSize; ++y)
                     if (IsCandidateForMove(x, y))
                         list.Add(new Point(x, y));
+
             return list;
         }
+        private static readonly Random _rand = new Random();
         private double EvalField()
         {
-            throw new NotImplementedException();
+            //TODO
+            return _rand.NextDouble();
         }
     }
+
 }

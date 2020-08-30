@@ -18,7 +18,9 @@ namespace Gomoku_Custom.Game.Checkers
             _winLength = winLength;
         }
 
-        private bool LineCheck(Point basePos, Point dp)
+        public bool LineCheck(Point basePos, Point dp) =>
+            LineCount(basePos, dp) == _winLength;
+        public int LineCount(Point basePos, Point dp)
         {
             if (_controller.IsOutOfRange(basePos) || _controller.GetPos(basePos) == Team.None)
                 throw new ArgumentOutOfRangeException();
@@ -40,7 +42,7 @@ namespace Gomoku_Custom.Game.Checkers
                     break;
                 count += 1;
             }
-            return count == _winLength;
+            return count;
         }
         private static List<Point> _directions = new List<Point>{
                 new Point(1, 1),

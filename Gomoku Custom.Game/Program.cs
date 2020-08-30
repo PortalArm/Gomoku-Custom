@@ -14,12 +14,15 @@ namespace Gomoku_Custom.Game
     {
         static void Main(string[] args)
         {
-            GomokuPlayer player1 = new GomokuPlayer(new RandomStrategy(), Team.Red, Guid.NewGuid());
-            GomokuPlayer player2 = new GomokuPlayer(new RandomStrategy(), Team.Blue, Guid.NewGuid());
+            GomokuPlayer player1 = new GomokuPlayer(null, Team.Red, Guid.NewGuid());
+            GomokuPlayer player2 = new GomokuPlayer(null, Team.Blue, Guid.NewGuid());
+            //GomokuPlayer player2 = new GomokuPlayer(new RandomStrategy(), Team.Blue, Guid.NewGuid());
 
             ConsoleGomokuFormatter cgf = new ConsoleGomokuFormatter(ConsoleGomokuFormatter.DefaultChars);
             GomokuGame gg = new GomokuGame(new MockRule());
             GameData data = gg.StartGame(Team.Blue);
+            player1.UpdateStrategy(new NaiveStrategy(data, player1.Team));
+            player2.UpdateStrategy(new NaiveStrategy(data, player2.Team));
             while (gg.State != GameState.GameEnded)
             {
                 Console.SetCursorPosition(0,0);
@@ -31,11 +34,12 @@ namespace Gomoku_Custom.Game
                 //.Select(v => int.Parse(v) - 1).ToArray();
                 //Task.Delay(500).Wait();
                 Point move = gg.PlayerTurn == player1.Team ? player1.ProposeMove(data) : player2.ProposeMove(data);
+                Console.WriteLine("Trying to move ({0}, {1})", gg.PlayerTurn, move);
                 data = gg.TryMakeMove(gg.PlayerTurn, move/*new Point(inputs[0], inputs[1])*/);
             }
             Console.WriteLine("Game ended. Press enter to see final move.");
             Console.ReadLine();
-            Console.Clear();
+            Console.SetCursorPosition(0, 0);/* Console.Clear();*/
             Console.WriteLine(cgf.RenderAsString(data));
             Console.WriteLine("{0} Lost! (Point {1})", data.NextPlayer, data.Updated);
         }
