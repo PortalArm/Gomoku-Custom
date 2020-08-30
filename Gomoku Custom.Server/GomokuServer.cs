@@ -45,7 +45,7 @@ namespace Gomoku_Custom.Server
         private InitData IssueToken() {
             //Если места уже заняты
             if (!IsGuidPresent(Guid.Empty))
-                return new InitData { Side = Team.Unknown, Code = ResponseCode.AccessDenied };
+                return new InitData { Side = Team.None, Code = ResponseCode.AccessDenied };
             //Первый законнектившийся
             if (_players[0] == Guid.Empty)
                 return new InitData {ClientId = _players[0] = Guid.NewGuid(), Side = Team.Blue, Code = ResponseCode.OK };
