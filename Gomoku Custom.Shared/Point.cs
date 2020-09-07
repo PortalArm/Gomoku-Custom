@@ -8,7 +8,7 @@ namespace Gomoku_Custom.Shared
     {
         public int X { get; }
         public int Y { get; }
-
+        public static readonly Point Empty = new Point(-1,-1);
         public Point(int x, int y) =>
             (X, Y) = (x, y);
 

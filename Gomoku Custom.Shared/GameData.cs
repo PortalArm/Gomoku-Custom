@@ -12,7 +12,7 @@ namespace Gomoku_Custom.Shared
     public class GameData
     {
         //public const int FieldDim = 19;
-        public Team[,] Field { get; set; }
+        public Team[][] Field { get; set; }
         public Point Updated { get; set; }
         //public string Message { get; set; }
         public ResponseCode Code { get; set; }
