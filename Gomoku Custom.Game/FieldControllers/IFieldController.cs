@@ -9,13 +9,13 @@ namespace Gomoku_Custom.Game.FieldControllers
 {
     public interface IFieldController
     {
-        int FieldSize {get;}
+        int FieldSize { get; }
         void SetPos(Point p, Team value);
         void SetPos(int x, int y, Team value);
         Team GetPos(Point p);
         Team GetPos(int x, int y);
         bool IsOutOfRange(Point p);
-        bool IsOutOfRange(int x,int y);
+        bool IsOutOfRange(int x, int y);
         void ClearField();
         bool IsEmpty();
         bool IsFull();

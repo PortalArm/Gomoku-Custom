@@ -4,29 +4,72 @@ using Gomoku_Custom.Game.Rules;
 using Gomoku_Custom.Shared;
 using System;
 using System.Collections.Generic;
+using System.Reflection;
 
 namespace Gomoku_Custom.Game
 {
+
+    public class GomokuGameBuilder
+    {
+        private GomokuGame _game;
+        private GomokuPlayer _playerBlue, _playerRed;
+        private GomokuGameBuilder() { }
+        public static GomokuGameBuilder Create(int fieldSize, int winLength, IRule rule)
+        {
+            return new GomokuGameBuilder {
+                _game = new GomokuGame(rule, Team.Blue, fieldSize, winLength)
+            };
+        }
+
+        //public GomokuGameBuilder SetupBluePlayer() {
+        //    new GomokuPlayer();
+        //}
+
+        public class GomokuGamePlayerChoose
+        {
+            public GomokuGamePlayerChoose() { }
+        }
+    }
+    public class GomokuGameRunner
+    {
+        public GomokuPlayer PlayerBlue { get; }
+        public GomokuPlayer PlayerRed { get; }
+        public GomokuGame Game { get; }
+        public GomokuGameRunner()
+        {
+            Console.WriteLine("Runner created!");
+        }
+
+        public void Start() {
+            Console.WriteLine("Runner started the game!");
+        }
+    }
     public class GomokuGame
     {
-        public const int FieldSize = 19;
-        public const int WinLength = 5;
+        public int FieldSize { get; }
+        public int WinLength { get; }
         private IFieldController _controller;
         private IChecker _checker;
         private IRule _rule;
-        public Team[,] Field { get; private set; }
+        public Team[][] Field { get; private set; }
         public Team PlayerTurn { get; private set; }
         public int TurnNumber { get; private set; }
 
         public GameState State { get; private set; }
-        public GomokuGame(IRule rule, Team firstTurn = Team.Blue)//, int fieldSize = 19)
+        public GomokuGame(IRule rule, Team firstTurn = Team.Blue, int fieldSize = 19, int winLength = 5)
         {
-            Field = new Team[FieldSize, FieldSize];
+            FieldSize = fieldSize;
+            WinLength = winLength;
+            Field = new Team[FieldSize][];
+            for (int i = 0; i < FieldSize; ++i)
+                Field[i] = new Team[FieldSize];
             _controller = new FieldController(Field);
             _checker = new Checker(_controller, WinLength);
             PlayerTurn = firstTurn;
             TurnNumber = 0;
             _rule = rule;
+
+            var d = new GomokuGameBuilder.GomokuGamePlayerChoose();
         }
 
         public GameData StartGame(Team first)
@@ -35,8 +78,11 @@ namespace Gomoku_Custom.Game
             PlayerTurn = first;
             TurnNumber = 0;
             State = GameState.GameStarted;
-            return new GameData { Code = ResponseCode.OK, Field = Field, NextPlayer = PlayerTurn };
+            return new GameData { Code = ResponseCode.OK, Field = Field, NextPlayer = PlayerTurn, Updated = Point.Empty };
         }
+        //public GameData StartRealGame(Team first) {
+
+        //}
         private void NextTurn()
         {
             PlayerTurn = PlayerTurn == Team.Red ? Team.Blue : Team.Red;
@@ -56,14 +102,15 @@ namespace Gomoku_Custom.Game
         }
         public GameData TryMakeMove(Team team, Point pos)//, out ResponseCode code)
         {
-            ResponseCode code =  Validate(team, pos);
+            ResponseCode code = Validate(team, pos);
             if (code != ResponseCode.OK)
-                return new GameData { Code = code, Field = Field, NextPlayer = team };
+                return new GameData { Code = code, Field = Field, NextPlayer = team, Updated = Point.Empty };
 
             MakeMove(team, pos);
-            if (_checker.IsWinCondition(pos))
+            bool isWin = _checker.IsWinCondition(pos);
+            if (isWin || _controller.IsFull())
             {
-                code = ResponseCode.Win;
+                code = isWin ? ResponseCode.Win : ResponseCode.Draw;
                 State = GameState.GameEnded;
                 // TODO: Stop the game.
             }

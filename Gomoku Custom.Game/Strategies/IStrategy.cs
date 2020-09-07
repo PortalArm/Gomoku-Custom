@@ -9,6 +9,7 @@ namespace Gomoku_Custom.Game.Strategies
 {
     public interface IStrategy
     {
-        Point Predict(GameData gd);
+        Point UpdateAndPredict(GameData gd);
+        void UpdateState(GameData gd);
     }
 }

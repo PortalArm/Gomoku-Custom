@@ -22,7 +22,10 @@ namespace Gomoku_Custom.Game
         public void UpdateStrategy(IStrategy strategy) =>
             _strategy = strategy;
         public Point ProposeMove(GameData gd) {
-            return _strategy.Predict(gd);
+            return _strategy.UpdateAndPredict(gd);
+        }
+        public void UpdateState(GameData gd) {
+            _strategy.UpdateState(gd);
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Gomoku_Custom.Shared;
+﻿using Gomoku_Custom.Game.FieldControllers;
+using Gomoku_Custom.Shared;
 using System.Collections.Generic;
 using System.Text;
 
@@ -11,9 +12,9 @@ namespace Gomoku_Custom.Game
         //private readonly GomokuGame _game;
         private StringBuilder _sb;
         private readonly Dictionary<Team, char> _teamChars;
-        public ConsoleGomokuFormatter(Dictionary<Team, char> correspondances)
+        public ConsoleGomokuFormatter(Dictionary<Team, char> correspondances = null)
         {
-            _teamChars = correspondances;
+            _teamChars = correspondances ?? DefaultChars;
         }
         private void Init(int fieldSize)
         {
@@ -26,15 +27,28 @@ namespace Gomoku_Custom.Game
                 _sb.Append('\n');
             }
         }
+        
+        // Should be removed, used only in debugging
+        public string RenderAsString(IFieldController fieldController) {
+            int side = fieldController.FieldSize + 2;
+            if (_sb == null || _sb.Length < side * (side + 1))
+                Init(side - 2);
+
+            for (int i = 0; i < side - 2; ++i)
+                for (int j = 0; j < side - 2; ++j)
+                    _sb[(i + 1) * (side + 1) + j + 1] = _teamChars[fieldController.GetPos(j,i)];
+            return _sb.ToString();
+        }
+        public char GetSymbolOf(Team team) => _teamChars[team];
         public string RenderAsString(GameData gd)
         {
             int side = gd.Field.GetLength(0) + 2;
             if (_sb == null || _sb.Length < side * (side + 1))
-                Init(gd.Field.GetLength(0));
+                Init(side - 2);
 
             for (int i = 0; i < side - 2; ++i)
                 for (int j = 0; j < side - 2; ++j)
-                    _sb[(i + 1) * (side + 1) + j + 1] = _teamChars[gd.Field[i, j]];
+                    _sb[(i + 1) * (side + 1) + j + 1] = _teamChars[gd.Field[i][j]];
             return _sb.ToString();
         }
         //public void Print()
