@@ -1,0 +1,71 @@
+﻿@page "/game/{LobbyId}"
+@inject IJSRuntime JSRuntime
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+@inject Gomoku_Custom.Blazor.Data.GameService Service
+@implements IDisposable
+
+<div class="game-container">
+    <div id="field" class="game-field">
+    </div>
+    <div class="game-settings">
+        <button @onclick="@GameStart" class="game-settings-item">Start game</button>
+        <div class="game-settings-item">
+            <span>Opponent</span>
+            <select class="game-opponent">
+                <option class="game-opponent-item">ff</option>
+                <option class="game-opponent-item">aa</option>
+            </select>
+        </div>
+        <div class="game-settings-item">
+            <span>Field size</span>
+            <input type="text" @bind-value="@FieldSizeInput">
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public string LobbyId { get; set; }
+
+    public string FieldSizeInput { get; set; } = "19";
+
+    [JSInvokable]
+    public string ReceivePos(int row, int col, string color)
+    {
+        string d = $"Pressed ({row}, {col}) with {color}";
+        Console.WriteLine(d);
+        return d;
+    }
+    private DotNetObjectReference<Game> _objRef;
+    private async Task GameStart()
+    {
+        if (int.TryParse(FieldSizeInput, out var fieldSize))
+            await JSRuntime.InvokeVoidAsync("initializeField", fieldSize, _objRef);
+        Console.WriteLine(LobbyId);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+
+            string hello = await SessionStorage.GetItemAsync<string>("hello");
+            if (string.IsNullOrEmpty(hello))
+            {
+                Console.WriteLine("Hello is not in session storage");
+                await SessionStorage.SetItemAsync<string>("hello", "MyDataMM");
+
+            } else
+                Console.WriteLine("Hello is in session storage");
+            _objRef = DotNetObjectReference.Create(this);
+        }
+    }
+
+    [JSInvokable]
+    public void Dispose()
+    {
+        Console.WriteLine("Disposed");
+        _objRef?.Dispose();
+    }
+
+}

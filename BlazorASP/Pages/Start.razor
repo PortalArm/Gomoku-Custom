@@ -1,0 +1,18 @@
+﻿@page "/start"
+@inject Gomoku_Custom.Blazor.Data.GameService Service 
+<div class="game-container">
+    <div class="game-settings">
+        <button @onclick="CreateLobby" class="game-settings-item">Create lobby</button>
+        <div class="division">OR</div>
+        <div class="game-settings-item">
+            <input class="game-settings-item" value="Lobby id" />
+            <button>Connect</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private void CreateLobby() {
+        Service.Set(Guid.NewGuid().ToString().Replace("-", ""), null);
+    }
+}
