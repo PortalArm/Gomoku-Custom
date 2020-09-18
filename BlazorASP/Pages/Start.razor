@@ -1,18 +1,104 @@
 ﻿@page "/start"
-@inject Gomoku_Custom.Blazor.Data.GameService Service 
+@using Gomoku_Custom.Shared
+@inject Gomoku_Custom.Blazor.Data.GameService Service
+@inject NavigationManager NavigationManager
+@inject Blazored.SessionStorage.ISessionStorageService SessionStorage
+
 <div class="game-container">
     <div class="game-settings">
         <button @onclick="CreateLobby" class="game-settings-item">Create lobby</button>
-        <div class="division">OR</div>
         <div class="game-settings-item">
-            <input class="game-settings-item" value="Lobby id" />
-            <button>Connect</button>
+            <span class="game-settings-item">Your team</span>
+            <select @bind="SelectedTeam" disabled=@_isAuto class="game-settings-item">
+                <option value="@Team.Blue">Blue</option>
+                <option value="@Team.Red">Red</option>
+            </select>
+        </div>
+        <div class="game-settings-item">
+            <input id="humantype" name="gametype" type="radio" value="false" @onchange="UpdateGameType" checked />
+            <span>Opponent</span>
+            <input id="autotype" name="gametype" type="radio" value="true" @onchange="UpdateGameType" />
+            <span>Automatic</span>
+            <select @bind="EnemyType">
+                @foreach (var t in _isAuto ? StrategyFactory.AutoStrategies : StrategyFactory.PlayableStrategies)
+                {
+                    <option class="game-opponent-item" value="@t.Name">@StrategyFactory.InfoForStrategies[t]</option>
+                }
+            </select>
+            <div class="game-settings-item">
+                <span>Field size</span>
+                <input type="number" @bind-value="@_fieldSize">
+            </div>
+            <div class="game-settings-item">
+                <span>Win length</span>
+                <input type="number" @bind-value="@_winLength">
+            </div>
+        </div>
+        <div class="division">OR @Text</div>
+        <div class="game-settings-item">
+            <input class="game-settings-item" @bind-value="@LobbyId" />
+            <button @onclick="JoinLobby">Connect</button>
         </div>
     </div>
 </div>
 
 @code {
-    private void CreateLobby() {
-        Service.Set(Guid.NewGuid().ToString().Replace("-", ""), null);
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        await SessionStorage.ClearAsync();
+    }
+    public void UpdateGameType(ChangeEventArgs args)
+    {
+        _isAuto = Convert.ToBoolean(args.Value);
+        EnemyType = _isAuto ? StrategyFactory.AutoStrategies[0].Name : StrategyFactory.PlayableStrategies[0].Name;
+        StateHasChanged();
+    }
+    public static Type[] EnemyTypes =
+        typeof(Gomoku_Custom.Game.Strategies.IStrategy).Assembly
+        .GetTypes().Where(t =>
+        t.IsClass && t.GetInterfaces().Contains((typeof(Gomoku_Custom.Game.Strategies.IStrategy))))
+        .ToArray();
+    public string EnemyType
+    {
+        get => _enemyType;
+        set { _enemyType = value; _selectedEnemyType = EnemyTypes.First(t => t.Name == value); }
+    }
+    private int _fieldSize = 19;
+    private int _winLength = 5;
+    private bool _isAuto = false;
+    private string _enemyType = EnemyTypes.First(t => t == typeof(ExternalStrategy)).Name;
+    private Type _selectedEnemyType = EnemyTypes.First(t => t == typeof(ExternalStrategy));
+
+    public static string Text { get; set; } = "";
+    public string LobbyId { get; set; } = "Lobby id";
+
+    public Team SelectedTeam { get; set; } = Team.Blue;
+    private void CreateLobby()
+    {
+        string url = Guid.NewGuid().ToString().Replace("-", "");
+
+        var runnerData = new Data.RunnerData {
+            Prefs = new Data.HostPrefs {
+                Team = SelectedTeam,
+                Opponent = _selectedEnemyType,
+                IsAuto = _isAuto,
+                FieldSize = _fieldSize,
+                WinLength = _winLength
+            },
+            Joined = 0,
+            Runner = new Gomoku_Custom.Game.GomokuGameRunner()
+        };
+        runnerData.Runner.InitGame(runnerData.Prefs.FieldSize, runnerData.Prefs.WinLength);
+        if (runnerData.Prefs.IsAuto)
+        {
+            runnerData.Runner.Init(Team.Red, _selectedEnemyType, Guid.NewGuid());
+            runnerData.Runner.Init(Team.Blue, _selectedEnemyType, Guid.NewGuid());
+        }
+        Service.Set(url, runnerData);
+        NavigationManager.NavigateTo($"/game/{url}");
+    }
+    private void JoinLobby()
+    {
+        NavigationManager.NavigateTo($"/game/{LobbyId}");
     }
 }

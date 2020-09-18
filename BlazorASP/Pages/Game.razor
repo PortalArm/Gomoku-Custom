@@ -4,68 +4,206 @@
 @inject Gomoku_Custom.Blazor.Data.GameService Service
 @implements IDisposable
 
+@if (!Service.Contains(LobbyId))
+    return;
+@{
+    _runnerData = Service.Get(LobbyId);
+    _runner = _runnerData.Runner;
+}
 <div class="game-container">
     <div id="field" class="game-field">
     </div>
     <div class="game-settings">
-        <button @onclick="@GameStart" class="game-settings-item">Start game</button>
-        <div class="game-settings-item">
-            <span>Opponent</span>
-            <select class="game-opponent">
-                <option class="game-opponent-item">ff</option>
-                <option class="game-opponent-item">aa</option>
-            </select>
-        </div>
-        <div class="game-settings-item">
-            <span>Field size</span>
-            <input type="text" @bind-value="@FieldSizeInput">
-        </div>
+        @if (!_runnerData.IsStarted)
+        {
+            <button @onclick="@GameStart" disabled=@((_runnerData.Prefs.Id != _playerId || !_allConnected) && !_runnerData.Prefs.IsAuto) class="game-settings-item">Start game</button>
+        } else
+        {
+            if (!_runnerData.Prefs.IsAuto)
+            {
+                <div class="game-settings-item">@TeamInfo</div>
+            }
+            <div class="game-settings-item">@GameInfo</div>
+        }
     </div>
 </div>
 
 @code {
+    private async Task PlayersConnectedAsync()
+    {
+        _allConnected = true;
+        await InvokeAsync(() => StateHasChanged());
+    }
+
+    private async Task GameStartedAsync(GameData args)
+    {
+        Console.WriteLine("Game started!");
+        _runnerData.IsStarted = true;
+        await CreateFieldOnClient(args.Field.Length, args.Field);
+        await InvokeAsync(() => StateHasChanged());
+    }
+
+    private async Task MoveCompletedAsync(GameData data)
+    {
+        Console.WriteLine($"Move received on client {_playerId}. Updated {data.Updated}, status: {data.Code}");
+        await JSRuntime.InvokeVoidAsync("updateCell", data.Updated.Y, data.Updated.X, OpponentOf(data.NextPlayer));
+        await InvokeAsync(() => StateHasChanged());
+        //if (!_runner.GetPlayerOf(data.NextPlayer).Strategy.IsHuman
+        //    && _runner.GetState() != GameState.GameEnded
+        //    && _runner.GetTeamOf(_playerId) != data.NextPlayer)
+        //    _runner.Move(data);
+
+        //Console.WriteLine($"Thread count: {System.Diagnostics.Process.GetCurrentProcess().Threads.Count}");
+    }
+
+    private Task GameEndedAsync(GameData data)
+    {
+        Console.WriteLine("Game ended");
+        return Task.CompletedTask;
+        //await JSRuntime.InvokeVoidAsync("updateCell", data.Updated.Y, data.Updated.X, OpponentOf(data.NextPlayer));
+    }
+
     [Parameter]
     public string LobbyId { get; set; }
 
-    public string FieldSizeInput { get; set; } = "19";
+    private bool _allConnected = false;
+    public string GameInfo => _runner.GetStateInfo();
+    public string TeamInfo => $"Your team: {Player}";
+    public Team Player => _runner.GetTeamOf(_playerId);
+    public Team OpponentOf(Team team) => team == Team.Red ? Team.Blue : Team.Red;
+    private string _playerId;
+
+    private GomokuGameRunner _runner;
+    private RunnerData _runnerData;
+    //private bool _gameStarted = false;
 
     [JSInvokable]
-    public string ReceivePos(int row, int col, string color)
+    public async Task ReceivePos(int row, int col)
     {
-        string d = $"Pressed ({row}, {col}) with {color}";
-        Console.WriteLine(d);
-        return d;
+        Console.WriteLine($"Player {_playerId} pressed ({row}, {col}) with {Player}");
+        await _runner.Move(_playerId, row, col);
+    }
+
+    private async Task PopulateFieldFromServer()
+    {
+        var field = _runner.GetCurrentField();
+        if (field == null)
+            return;
+        _runnerData.IsStarted = true;
+        var fieldSize = field.Length;
+        await CreateFieldOnClient(fieldSize, field);
+        //await JSRuntime.InvokeVoidAsync("initializeField", fieldSize, _objRef, field);
     }
     private DotNetObjectReference<Game> _objRef;
+
     private async Task GameStart()
     {
-        if (int.TryParse(FieldSizeInput, out var fieldSize))
-            await JSRuntime.InvokeVoidAsync("initializeField", fieldSize, _objRef);
-        Console.WriteLine(LobbyId);
+        _runnerData.IsStarted = true;
+
+        if (_runnerData.Prefs.IsAuto)
+        {
+            //await Task.Run(_runner.RunAuto);
+            await _runner.RunAuto();
+            return;
+        }
+
+        _runner.Start();
+    }
+    private ValueTask CreateFieldOnClient(int size, Team[][] refField = null)
+    {
+        return JSRuntime.InvokeVoidAsync("initializeField", size, _objRef, refField);
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (_runnerData is null)
+            return;
         if (firstRender)
         {
-
-            string hello = await SessionStorage.GetItemAsync<string>("hello");
-            if (string.IsNullOrEmpty(hello))
-            {
-                Console.WriteLine("Hello is not in session storage");
-                await SessionStorage.SetItemAsync<string>("hello", "MyDataMM");
-
-            } else
-                Console.WriteLine("Hello is in session storage");
+            _runner.OnPlayersConnected += PlayersConnectedAsync;
+            _runner.OnGameStarted += GameStartedAsync;
+            _runner.OnMoveCompleted += MoveCompletedAsync;
+            _runner.OnGameEnded += GameEndedAsync;
             _objRef = DotNetObjectReference.Create(this);
+            if (_runnerData.Prefs.IsAuto)
+            {
+                _runnerData.Joined++;
+                if (_runnerData.IsStarted)
+                    await PopulateFieldFromServer();
+                return;
+            }
+
+            _playerId = await SessionStorage.GetItemAsync<string>("playerId");
+            if (string.IsNullOrEmpty(_playerId))
+            {
+                var guid = Guid.NewGuid();
+                _playerId = guid.ToString();
+                Console.WriteLine($"This is a new player. Generated id: {_playerId}");
+                await SessionStorage.SetItemAsync<string>("playerId", _playerId);
+                _runnerData.Joined++;
+                //New player joined
+                switch (_runnerData.Joined)
+                {
+                    case int joined when joined <= 0:
+                        throw new ArgumentException(nameof(_runnerData.Joined));
+                    case 1:
+                        _runnerData.Prefs.Id = _playerId;
+                        Console.WriteLine("This is first player");
+                        _runner.Init(_runnerData.Prefs.Team, typeof(ExternalStrategy), guid);
+
+                        //_runnerData.Joined++;
+                        break;
+                    case 2:
+                        Console.WriteLine("This is second player");
+                        var opponent = _runnerData.Prefs.Team == Team.Red ? Team.Blue : Team.Red;
+                        _runner.Init(opponent, _runnerData.Prefs.Opponent, guid);
+
+                        //_runnerData.Joined++;
+                        break;
+                    default:
+                        Console.WriteLine("This is spectator");
+                        await PopulateFieldFromServer();
+                        break;
+                }
+            } else
+            {
+                Console.WriteLine($"This player probably pressed F5: {_playerId}");
+                await PopulateFieldFromServer();
+                //so we need to populate field on client
+            }
+            StateHasChanged();
         }
     }
-
     [JSInvokable]
-    public void Dispose()
+    public bool IsClientTurn()
     {
-        Console.WriteLine("Disposed");
-        _objRef?.Dispose();
+        Team current = Team.None;
+        var state = _runner.GetState();
+        if (state == GameState.WaitingForBlue)
+            current = Team.Blue;
+        else
+            if (state == GameState.WaitingForRed)
+            current = Team.Red;
+        return _runnerData.Runner.GetTeamOf(_playerId) == current;
     }
 
+    //[JSInvokable]
+    public void Dispose()
+    {
+        _objRef?.Dispose();
+        if (_runnerData is null)
+            return;
+
+        _runner.OnPlayersConnected -= PlayersConnectedAsync;
+        _runner.OnGameStarted -= GameStartedAsync;
+        _runner.OnMoveCompleted -= MoveCompletedAsync;
+        _runner.OnGameEnded -= GameEndedAsync;
+        _runnerData.Joined--;
+        Console.WriteLine($"Connection with client {_playerId} has been disposed. Clients left: {_runnerData.Joined}");
+        if (_runnerData.Joined == 0)
+        {
+            Console.WriteLine("Last player left... Disposing the game");
+            Service.Delete(LobbyId);
+        }
+    }
 }
