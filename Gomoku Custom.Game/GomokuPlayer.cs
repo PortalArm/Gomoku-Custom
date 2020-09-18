@@ -10,22 +10,23 @@ namespace Gomoku_Custom.Game
 {
     public class GomokuPlayer
     {
-        private IStrategy _strategy;
-        public Team Team { get; set; }
-        private Guid _id;
+        public IStrategy Strategy { get; private set; }
+        public Team Team { get; private set; }
+        public Guid Id { get; private set; }
+        // get rid of team, use strategy's team instead
         public GomokuPlayer(IStrategy strategy, Team team, Guid id)
         {
-            _strategy = strategy;
+            Strategy = strategy;
             Team = team;
-            _id = id;
+            Id = id;
         }
         public void UpdateStrategy(IStrategy strategy) =>
-            _strategy = strategy;
+            Strategy = strategy;
         public Point ProposeMove(GameData gd) {
-            return _strategy.UpdateAndPredict(gd);
+            return Strategy.UpdateAndPredict(gd);
         }
         public void UpdateState(GameData gd) {
-            _strategy.UpdateState(gd);
+            Strategy.UpdateState(gd);
         }
     }
 }

@@ -14,6 +14,7 @@ namespace Gomoku_Custom.Game.Strategies
     [Obsolete]
     public class GeneralStrategy : IStrategy
     {
+        public bool IsHuman => false;
         private Team[][] _field;
         private int _fieldSize;
         private readonly Team _team;

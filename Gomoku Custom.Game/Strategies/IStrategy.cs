@@ -11,5 +11,6 @@ namespace Gomoku_Custom.Game.Strategies
     {
         Point UpdateAndPredict(GameData gd);
         void UpdateState(GameData gd);
+        bool IsHuman { get; }
     }
 }

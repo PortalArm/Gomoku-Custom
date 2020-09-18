@@ -1,4 +1,5 @@
-﻿using Gomoku_Custom.Game.Rules;
+﻿using Gomoku_Custom.Game.Formatters;
+using Gomoku_Custom.Game.Rules;
 using Gomoku_Custom.Game.Strategies;
 using Gomoku_Custom.Shared;
 using System;
@@ -21,15 +22,15 @@ namespace Gomoku_Custom.Game
                 List<Point> history = new List<Point>();
                 File.WriteAllText("output.txt", "");
                 GomokuPlayer player1 = new GomokuPlayer(null, Team.Red, Guid.NewGuid());
-                GomokuPlayer player2 = new GomokuPlayer(new HumanStrategy(), Team.Blue, Guid.NewGuid());
+                GomokuPlayer player2 = new GomokuPlayer(new ConsoleHumanStrategy(), Team.Blue, Guid.NewGuid());
                 //GomokuPlayer player2 = new GomokuPlayer(null, Team.Blue, Guid.NewGuid());
 
                 ConsoleGomokuFormatter cgf = new ConsoleGomokuFormatter(ConsoleGomokuFormatter.DefaultChars);
                 GomokuGame gg = new GomokuGame(new MockRule(), fieldSize: 19, winLength: 5);
                 //GomokuGame gg = new GomokuGame(new MockRule(), fieldSize: 3, winLength: 3);
                 GameData data = gg.StartGame(Team.Blue);
-                player1.UpdateStrategy(new NaiveStrategy(data, player1.Team, gg.WinLength, maxDepth: 4));
-                //player2.UpdateStrategy(new NaiveStrategy(data, player2.Team, gg.WinLength, 6));
+                player1.UpdateStrategy(new NaiveStrategy(gg.FieldSize, player1.Team, gg.WinLength, maxDepth: 4));
+                //player2.UpdateStrategy(new NaiveStrategy(gg.FieldSize, player2.Team, gg.WinLength, 6));
                 while (gg.State != GameState.GameEnded)
                 {
                     Console.SetCursorPosition(0, 0);

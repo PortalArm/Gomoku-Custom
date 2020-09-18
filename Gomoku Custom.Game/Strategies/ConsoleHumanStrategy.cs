@@ -7,20 +7,17 @@ using System.Threading.Tasks;
 
 namespace Gomoku_Custom.Game.Strategies
 {
-    public class RandomStrategy : IStrategy
+    public class ConsoleHumanStrategy : IStrategy
     {
-        public bool IsHuman => false;
-
-        private static readonly Random _rand = new Random();
+        public bool IsHuman => true;
         public Point UpdateAndPredict(GameData gd)
         {
-            int bound = gd.Field.GetLength(0);
-            return new Point(_rand.Next(bound), _rand.Next(bound));
+            int[] inputs = Console.ReadLine().Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse).ToArray();
+            return new Point(inputs[0],inputs[1]);
         }
 
         public void UpdateState(GameData gd)
         {
-            //throw new NotSupportedException();
         }
     }
 }

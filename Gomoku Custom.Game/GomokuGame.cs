@@ -8,49 +8,13 @@ using System.Reflection;
 
 namespace Gomoku_Custom.Game
 {
-
-    public class GomokuGameBuilder
-    {
-        private GomokuGame _game;
-        private GomokuPlayer _playerBlue, _playerRed;
-        private GomokuGameBuilder() { }
-        public static GomokuGameBuilder Create(int fieldSize, int winLength, IRule rule)
-        {
-            return new GomokuGameBuilder {
-                _game = new GomokuGame(rule, Team.Blue, fieldSize, winLength)
-            };
-        }
-
-        //public GomokuGameBuilder SetupBluePlayer() {
-        //    new GomokuPlayer();
-        //}
-
-        public class GomokuGamePlayerChoose
-        {
-            public GomokuGamePlayerChoose() { }
-        }
-    }
-    public class GomokuGameRunner
-    {
-        public GomokuPlayer PlayerBlue { get; }
-        public GomokuPlayer PlayerRed { get; }
-        public GomokuGame Game { get; }
-        public GomokuGameRunner()
-        {
-            Console.WriteLine("Runner created!");
-        }
-
-        public void Start() {
-            Console.WriteLine("Runner started the game!");
-        }
-    }
     public class GomokuGame
     {
         public int FieldSize { get; }
         public int WinLength { get; }
-        private IFieldController _controller;
-        private IChecker _checker;
-        private IRule _rule;
+        private readonly IFieldController _controller;
+        private readonly IChecker _checker;
+        private readonly IRule _rule;
         public Team[][] Field { get; private set; }
         public Team PlayerTurn { get; private set; }
         public int TurnNumber { get; private set; }
@@ -68,8 +32,6 @@ namespace Gomoku_Custom.Game
             PlayerTurn = firstTurn;
             TurnNumber = 0;
             _rule = rule;
-
-            var d = new GomokuGameBuilder.GomokuGamePlayerChoose();
         }
 
         public GameData StartGame(Team first)
@@ -77,15 +39,13 @@ namespace Gomoku_Custom.Game
             _controller.ClearField();
             PlayerTurn = first;
             TurnNumber = 0;
-            State = GameState.GameStarted;
+            State = first == Team.Blue ? GameState.WaitingForBlue : GameState.WaitingForRed;
             return new GameData { Code = ResponseCode.OK, Field = Field, NextPlayer = PlayerTurn, Updated = Point.Empty };
         }
-        //public GameData StartRealGame(Team first) {
-
-        //}
         private void NextTurn()
         {
             PlayerTurn = PlayerTurn == Team.Red ? Team.Blue : Team.Red;
+            State = PlayerTurn == Team.Blue ? GameState.WaitingForBlue : GameState.WaitingForRed;
             ++TurnNumber;
         }
         private ResponseCode Validate(Team team, Point pos)
@@ -100,7 +60,7 @@ namespace Gomoku_Custom.Game
                 return ResponseCode.PointOccupied;
             return ResponseCode.OK;
         }
-        public GameData TryMakeMove(Team team, Point pos)//, out ResponseCode code)
+        public GameData TryMakeMove(Team team, Point pos)
         {
             ResponseCode code = Validate(team, pos);
             if (code != ResponseCode.OK)
@@ -112,7 +72,6 @@ namespace Gomoku_Custom.Game
             {
                 code = isWin ? ResponseCode.Win : ResponseCode.Draw;
                 State = GameState.GameEnded;
-                // TODO: Stop the game.
             }
             return new GameData { Code = code, Field = Field, NextPlayer = PlayerTurn, Updated = pos };
         }

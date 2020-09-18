@@ -2,83 +2,31 @@
 using Gomoku_Custom.Game.FieldControllers;
 using Gomoku_Custom.Shared;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-
+using Gomoku_Custom.Game.Formatters;
 namespace Gomoku_Custom.Game.Strategies
 {
-    public class GameTree
-    {
-
-    }
-    public class GameTreeNode
-    {
-        public double Score { get; set; }
-        public int Depth { get; }
-        public Dictionary<Point, GameTreeNode> Children { get; set; }
-        public Team Current { get; }
-        public GameTreeNode(List<Point> available, Team toMove, int depth)
-        {
-            Children = new Dictionary<Point, GameTreeNode>(available.Select(p => new KeyValuePair<Point, GameTreeNode>(p, null)));
-            Current = toMove;
-            Depth = depth;
-        }
-        public GameTreeNode GetToNodeWith(Point point)
-        {
-            return Children[point];
-        }
-    }
     public class NaiveStrategy : IStrategy
     {
+        public bool IsHuman => false;
         private Team[][] _internalField;
         private readonly Team _team;
-        private readonly Team _enemyTeam;
         private IFieldController _controller;
         private IChecker _checker;
         private int _depth;
-        public NaiveStrategy(GameData gd, Team holderTeam, int winLength, int maxDepth = 6)
+        //public NaiveStrategy(GameData gd, Team team, int winLength, int maxDepth = 6)
+        public NaiveStrategy(int fieldSize, Team team, int winLength, int maxDepth = 6)
         {
-            int size = gd.Field.Length;
+            int size = fieldSize;
             _internalField = new Team[size][];
             for (int i = 0; i < size; ++i)
                 _internalField[i] = new Team[size];
 
             _controller = new FieldController(_internalField);
             _checker = new Checker(_controller, winLength);
-            for (int i = 0; i < size; ++i)
-                for (int j = 0; j < size; ++j)
-                    _internalField[i][j] = gd.Field[i][j];
 
-            _team = holderTeam;
-            _enemyTeam = OpponentOf(_team);//_team == Team.Red ? Team.Blue : Team.Red;
+            _team = team;
             _depth = maxDepth;
-        }
-        internal class PointScore
-        {
-            public double Score { get; set; }
-            public Point Point { get; set; }
-            public static bool operator >(PointScore a, PointScore b) => a.Score > b.Score;
-            public static PointScore operator -(PointScore ps) => new PointScore(-ps.Score, ps.Point);
-            public static bool operator >=(PointScore a, PointScore b) => a.Score >= b.Score;
-            public static bool operator <=(PointScore a, PointScore b) => a.Score <= b.Score;
-            public static bool operator <(PointScore a, PointScore b) => a.Score < b.Score;
-            public static bool operator ==(PointScore a, PointScore b) => a.Score == b.Score;
-            public static bool operator !=(PointScore a, PointScore b) => !(a == b);
-            public PointScore(double score, Point point) =>
-                (Score, Point) = (score, point);
-            public override bool Equals(object obj)
-            {
-                return obj is PointScore score &&
-                       Score == score.Score &&
-                       EqualityComparer<Point>.Default.Equals(Point, score.Point);
-            }
-
-            public override int GetHashCode()
-            {
-                return HashCode.Combine(Score, Point);
-            }
         }
         public void UpdateState(GameData gd)
         {
@@ -108,10 +56,11 @@ namespace Gomoku_Custom.Game.Strategies
             Point move = Point.Empty;
             var moves = AvailableMoves();
             double score = -maxValue;
+            Team opponent = OpponentOf(_team);
             foreach (Point next in moves)
             {
                 _controller.SetPos(next, _team);
-                double newScore = -Minimax(next, CreateMoves(moves, next), OpponentOf(_team), 0, -maxValue, maxValue);
+                double newScore = -Minimax(next, CreateMoves(moves, next), opponent, 0, -maxValue, maxValue);
                 _controller.SetPos(next, Team.None);
                 if (newScore > score)
                 {
@@ -163,109 +112,70 @@ namespace Gomoku_Custom.Game.Strategies
         {
             return 0;
         }
-        private PointScore EvalField(Point p, Team player)
-        {
-            //return _rand.NextDouble();
-            Team winner = GetWinner(p);
-            //File.AppendAllText("output.txt", cgf.RenderAsString(_controller));
-            //File.AppendAllText("output.txt", $"Evaluating from point {p} with mult == {mult}\n");
-            //File.AppendAllText("output.txt", $"Our team: {_team}, symbol: {cgf.GetSymbolOf(_team)}\n");
-            //File.AppendAllText("output.txt", $"Final score: {(winner != Team.None ? (winner == _team ? maxValue : -maxValue) : 0)}\n");
-            if (winner != Team.None)
-                return new PointScore(winner == player ? maxValue : -maxValue, p);
-            //_controller.SetPos(p, OpponentOf(player));
-            //winner = GetWinner(p);
-            //_controller.SetPos(p, Team.None);
-            //if(winner == OpponentOf(player))
-            //    return new PointScore(maxValue, p);
-            return new PointScore(0, p);
-
-            //Dictionary<Point, Direction> processed = new Dictionary<Point, Direction>();
-            //int[] counts = new int[_checker.WinLength];
-            //for (int y = 0; y < _controller.FieldSize; ++y)
-            //    for (int x = 0; x < _controller.FieldSize; ++x)
-            //    {
-            //        Point current = new Point(x, y);
-            //        Team team = _controller.GetPos(current);
-            //        int offset = team == _team ? 1 : -1;
-            //        //if(_internalField[current.Y,current.X] != team)
-            //        if (_controller.GetPos(current) == Team.None)
-            //            continue;
-
-            //        //Если текущая клетка была в буфере обработанных, извлекаем, по каким направлениям она была обработана
-            //        Direction processedDirections = Direction.None;
-            //        if (processed.ContainsKey(current))
-            //            processedDirections = processed[current];
-
-            //        //REFACTOR
-            //        foreach (var vector in Vectors)
-            //        {
-            //            if (processedDirections.HasFlag(vector.Key))
-            //                continue;
-            //            int count = 1;
-            //            Point checking = current + vector.Value;
-            //            while (!_controller.IsOutOfRange(checking) && _controller.GetPos(checking) == team)
-            //            {
-            //                ++count;
-            //                if (processed.ContainsKey(current))
-            //                    processed[current] |= vector.Key;
-            //                else
-            //                    processed[current] = vector.Key;
-
-            //                checking += vector.Value;
-            //            }
-            //            if (count < _checker.WinLength)
-            //                counts[count - 1] += offset;
-            //            //else
-            //            //    if (count == 5)
-            //            //    return double.PositiveInfinity;
-
-            //        }
-            //    }
-            //File.AppendAllText("output.txt", cgf.RenderAsString(_controller));
-            //File.AppendAllText("output.txt", $"Our team: {_team}, symbol: {cgf.GetSymbolOf(_team)}\n");
-            //File.AppendAllText("output.txt", $"Array cfg: {string.Join(" ", counts)}\n");
-            ////return _rand.NextDouble();
-            //return counts[0] * Weights[0] + counts[1] * Weights[1] + counts[2] * Weights[2];// + counts[3] * Weights[3];
-        }
-        //сделать по-другому получение точки
-        //private Point _predicted = Point.Empty;
-        //private double Negamax(Point next, int depthLevel, int multiplier)//, double alpha, double beta)
+        //private PointScore EvalField(Point p, Team player)
         //{
-        //    if (next != Point.Empty)
-        //    {
-        //        Team win = GetWinner(next);
+        //    //return _rand.NextDouble();
+        //    Team winner = GetWinner(p);
+        //    //File.AppendAllText("output.txt", cgf.RenderAsString(_controller));
+        //    //File.AppendAllText("output.txt", $"Evaluating from point {p} with mult == {mult}\n");
+        //    //File.AppendAllText("output.txt", $"Our team: {_team}, symbol: {cgf.GetSymbolOf(_team)}\n");
+        //    //File.AppendAllText("output.txt", $"Final score: {(winner != Team.None ? (winner == _team ? maxValue : -maxValue) : 0)}\n");
+        //    if (winner != Team.None)
+        //        return new PointScore(winner == player ? maxValue : -maxValue, p);
+        //    //_controller.SetPos(p, OpponentOf(player));
+        //    //winner = GetWinner(p);
+        //    //_controller.SetPos(p, Team.None);
+        //    //if(winner == OpponentOf(player))
+        //    //    return new PointScore(maxValue, p);
+        //    return new PointScore(0, p);
 
-        //        if (win != Team.None)
-        //        {
-        //            //File.AppendAllText("output.txt", cgf.RenderAsString(_controller));
-        //            //File.AppendAllText("output.txt", $"Winner: {win}\n");
-        //            //File.AppendAllText("output.txt", $"Our team: {_team}, symbol: {cgf.GetSymbolOf(_team)}, depth: {depthLevel}\n");
-        //            return multiplier * (win == _team ? double.PositiveInfinity - 100 + depthLevel : double.NegativeInfinity + 100 - depthLevel);
-        //        }
-        //    }
-        //    if (depthLevel == 0)
-        //        return multiplier * EvalField();
-        //    double maxScore = double.NegativeInfinity;
+        //    //Dictionary<Point, Direction> processed = new Dictionary<Point, Direction>();
+        //    //int[] counts = new int[_checker.WinLength];
+        //    //for (int y = 0; y < _controller.FieldSize; ++y)
+        //    //    for (int x = 0; x < _controller.FieldSize; ++x)
+        //    //    {
+        //    //        Point current = new Point(x, y);
+        //    //        Team team = _controller.GetPos(current);
+        //    //        int offset = team == _team ? 1 : -1;
+        //    //        //if(_internalField[current.Y,current.X] != team)
+        //    //        if (_controller.GetPos(current) == Team.None)
+        //    //            continue;
 
-        //    var moves = AvailableMoves();
-        //    foreach (Point predict in moves)
-        //    {
-        //        _controller.SetPos(predict, multiplier == -1 ? _enemyTeam : _team);
-        //        double newScore = -Negamax(predict, depthLevel - 1, -multiplier);//, -beta, -alpha);
-        //        _controller.SetPos(predict, Team.None);
+        //    //        //Если текущая клетка была в буфере обработанных, извлекаем, по каким направлениям она была обработана
+        //    //        Direction processedDirections = Direction.None;
+        //    //        if (processed.ContainsKey(current))
+        //    //            processedDirections = processed[current];
 
-        //        if (newScore >= maxScore)/* || newScore == maxScore && _rand.NextDouble() > 0.5)*/
-        //        {
-        //            maxScore = newScore;
-        //            _predicted = predict;
-        //        }
-        //        //alpha = Math.Max(alpha, maxScore);
-        //        //if (alpha >= beta)
-        //        //    break;
+        //    //        //REFACTOR
+        //    //        foreach (var vector in Vectors)
+        //    //        {
+        //    //            if (processedDirections.HasFlag(vector.Key))
+        //    //                continue;
+        //    //            int count = 1;
+        //    //            Point checking = current + vector.Value;
+        //    //            while (!_controller.IsOutOfRange(checking) && _controller.GetPos(checking) == team)
+        //    //            {
+        //    //                ++count;
+        //    //                if (processed.ContainsKey(current))
+        //    //                    processed[current] |= vector.Key;
+        //    //                else
+        //    //                    processed[current] = vector.Key;
 
-        //    }
-        //    return maxScore;
+        //    //                checking += vector.Value;
+        //    //            }
+        //    //            if (count < _checker.WinLength)
+        //    //                counts[count - 1] += offset;
+        //    //            //else
+        //    //            //    if (count == 5)
+        //    //            //    return double.PositiveInfinity;
+
+        //    //        }
+        //    //    }
+        //    //File.AppendAllText("output.txt", cgf.RenderAsString(_controller));
+        //    //File.AppendAllText("output.txt", $"Our team: {_team}, symbol: {cgf.GetSymbolOf(_team)}\n");
+        //    //File.AppendAllText("output.txt", $"Array cfg: {string.Join(" ", counts)}\n");
+        //    ////return _rand.NextDouble();
+        //    //return counts[0] * Weights[0] + counts[1] * Weights[1] + counts[2] * Weights[2];// + counts[3] * Weights[3];
         //}
         private Team GetWinner(Point winPoint)
         {
